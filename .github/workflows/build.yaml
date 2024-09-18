@@ -35,6 +35,7 @@ jobs:
           git clone --depth 1 --branch $UBUNTU_TAG git://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/noble kernel/noble
 
       - name: Cache Ubuntu kernel
+        if: steps.cache-kernel.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: kernel/noble
@@ -52,7 +53,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt install libncurses-dev gawk flex bison openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf llvm
+          sudo apt install libncurses-dev gawk flex bison openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf llvm debhelper
 
       - name: Configure Ubuntu kernel
         env:
