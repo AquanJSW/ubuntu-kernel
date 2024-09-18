@@ -61,8 +61,6 @@ jobs:
         run: |
           cd kernel/noble
           sed -i "1{s/)/${LOCAL_VERSION})/}" debian.master/changelog
-          sed -i '{s/^# ARCH.*/# ARCH: amd64/}' debian.master/config/annotations
-          sed -i '{s/^# FLAVOUR.*/# FLAVOUR: amd64-generic/}' debian.master/config/annotations
           fakeroot debian/rules clean
           fakeroot debian/rules updateconfigs
 
