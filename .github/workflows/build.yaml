@@ -4,24 +4,15 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
-      - name: Set tags
-        id: tags
+      - name: Set tag
+        id: tag
         run: |
           sudo apt update
-          sudo apt install parallel -y
           UBUNTU_KERNEL_VERSION="$(sudo apt list '?name(linux-image-[[:digit:]]+.[[:digit:]]+.[[:digit:]]+-[[:digit:]]+-generic)' | awk -F' ' '{print $2}' | tail -n1)"
           UBUNTU_TAG="Ubuntu-$UBUNTU_KERNEL_VERSION"
-          UPSTREAM_TAG="v$(echo $UBUNTU_KERNEL_VERSION | awk -F'.' '{print $1"."$2}')"
           echo "UBUNTU_TAG=$UBUNTU_TAG" >> $GITHUB_OUTPUT
-          echo "UPSTREAM_TAG=$UPSTREAM_TAG" >> $GITHUB_OUTPUT
-      - name: Checkout upstream kernel
-        uses: actions/checkout@v4
-        with:
-          repository: torvalds/linux
-          ref: refs/tags/${{ steps.tags.outputs.UPSTREAM_TAG }}
-          path: linux
       - name: Checkout Ubuntu kernel
         env:
-          UBUNTU_TAG: ${{ steps.tags.outputs.UBUNTU_TAG }}
+          UBUNTU_TAG: ${{ steps.tag.outputs.UBUNTU_TAG }}
         run: |
-          git clone --depth 1 --branch $UBUNTU_TAG --reference linux git://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/noble
+          git clone --depth 1 --branch $UBUNTU_TAG git://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/noble
