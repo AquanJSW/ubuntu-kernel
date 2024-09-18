@@ -4,15 +4,32 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
-      - name: Set tag
+      - name: Set kernel version and tag
         id: tag
         run: |
           sudo apt update
           UBUNTU_KERNEL_VERSION="$(sudo apt list '?name(linux-image-[[:digit:]]+.[[:digit:]]+.[[:digit:]]+-[[:digit:]]+-generic)' | awk -F' ' '{print $2}' | tail -n1)"
           UBUNTU_TAG="Ubuntu-$UBUNTU_KERNEL_VERSION"
+          echo "UBUNTU_KERNEL_VERSION=$UBUNTU_KERNEL_VERSION" >> $GITHUB_OUTPUT
           echo "UBUNTU_TAG=$UBUNTU_TAG" >> $GITHUB_OUTPUT
+      - uses: actions/cache/restore@v4
+        id: cache
+        with:
+          path: kernel/noble
+          key: ${{ runner.os }}-ubuntu-kernel-${{ steps.tag.outputs.UBUNTU_KERNEL_VERSION }}
       - name: Checkout Ubuntu kernel
+        if: steps.cache.outputs.cache-hit != 'true'
         env:
           UBUNTU_TAG: ${{ steps.tag.outputs.UBUNTU_TAG }}
         run: |
-          git clone --depth 1 --branch $UBUNTU_TAG git://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/noble
+          git clone --depth 1 --branch $UBUNTU_TAG git://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/noble kernel/noble
+      - uses: actions/cache/save@v4
+        with:
+          path: kernel/noble
+          key: ${{ runner.os }}-ubuntu-kernel-${{ steps.tag.outputs.UBUNTU_KERNEL_VERSION }}
+      - uses: mxschmitt/action-tmate@v3
+      # - name: Clean up caches
+      #   run: |
+      #     gh extension install actions/gh-actions-cache
+      #     echo "Fetching list of cache keys..."
+      #     gh cache list
