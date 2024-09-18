@@ -9,8 +9,11 @@ jobs:
         run: |
           sudo apt update
           sudo apt install parallel -y
-          sudo apt list '?name(linux-image-[[:digit:]]+.[[:digit:]]+.[[:digit:]]+-[[:digit:]]+-generic)' | awk -F' ' '{print $2}' | tail -n1 | parallel -j1 echo "KERNEL_VERSION={}" >> "$GITHUB_OUTPUT"
-      - name: Get kernel version
+          sudo apt list '?name(linux-image-[[:digit:]]+.[[:digit:]]+.[[:digit:]]+-[[:digit:]]+-generic)' | awk -F' ' '{print $2}' | tail -n1 | parallel -j1 echo "TAG=Ubuntu-{}" >> "$GITHUB_OUTPUT"
+      - name: Checkout kernel
         env:
-          KERNEL_VERSION: ${{ steps.kernel_version.outputs.KERNEL_VERSION }}
-        run: echo "Kernel version is $KERNEL_VERSION"
+          TAG: ${{ steps.kernel_version.outputs.TAG }}
+        uses: actions/checkout@v4
+        with:
+          repository: git://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/noble
+          ref: refs/tags/${{ env.TAG }}
