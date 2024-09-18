@@ -12,22 +12,77 @@ jobs:
           UBUNTU_TAG="Ubuntu-$UBUNTU_KERNEL_VERSION"
           echo "UBUNTU_KERNEL_VERSION=$UBUNTU_KERNEL_VERSION" >> $GITHUB_OUTPUT
           echo "UBUNTU_TAG=$UBUNTU_TAG" >> $GITHUB_OUTPUT
-      - uses: actions/cache/restore@v4
-        id: cache
+
+      - name: Restore Ubuntu kernel cache
+        uses: actions/cache/restore@v4
+        id: cache-kernel
         with:
           path: kernel/noble
           key: ${{ runner.os }}-ubuntu-kernel-${{ steps.tag.outputs.UBUNTU_KERNEL_VERSION }}
+
+      - name: Restore artifacts cache
+        uses: actions/cache/restore@v4
+        id: cache-artifacts
+        with:
+          path: kernel/*.deb
+          key: ${{ runner.os }}-ubuntu-kernel-${{ steps.tag.outputs.UBUNTU_KERNEL_VERSION }}-artifacts
+
       - name: Checkout Ubuntu kernel
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.cache-kernel.outputs.cache-hit != 'true'
         env:
           UBUNTU_TAG: ${{ steps.tag.outputs.UBUNTU_TAG }}
         run: |
           git clone --depth 1 --branch $UBUNTU_TAG git://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/noble kernel/noble
-      - uses: actions/cache/save@v4
+
+      - name: Cache Ubuntu kernel
+        uses: actions/cache/save@v4
         with:
           path: kernel/noble
           key: ${{ runner.os }}-ubuntu-kernel-${{ steps.tag.outputs.UBUNTU_KERNEL_VERSION }}
-      - uses: mxschmitt/action-tmate@v3
+
+      - name: Checkout this repository for patches
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          path: pathes
+
+      - name: Patch
+        run: |
+          git apply -p1 --directory=kernel/noble --verbose pathes/patches/0020*.patch
+
+      - name: Install dependencies
+        run: |
+          sudo apt install libncurses-dev gawk flex bison openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf llvm
+
+      - name: Configure Ubuntu kernel
+        env:
+          LOCAL_VERSION: +tscfix
+        run: |
+          cd kernel/noble
+          sed -i "1{s/)/${LOCAL_VERSION})/}" debian.master/changelog
+          fakeroot debian/rules clean
+          fakeroot debian/rules updateconfigs
+
+      - name: Build Ubuntu kernel
+        run: |
+          cd kernel/noble
+          fakeroot debian/rules binary-headers binary-generic
+
+      - name: Cache artifacts
+        uses: actions/cache/save@v4
+        with:
+          path: kernel/*.deb
+          key: ${{ runner.os }}-ubuntu-kernel-${{ steps.tag.outputs.UBUNTU_KERNEL_VERSION }}-artifacts
+
+      - name: Upload Ubuntu kernel
+        if: steps.cache-artifacts.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-kernel-noble
+          path: kernel/*.deb
+
+      # Use tmate to debug 'cache clean up' if needed
+      # - uses: mxschmitt/action-tmate@v3
       # - name: Clean up caches
       #   run: |
       #     gh extension install actions/gh-actions-cache
