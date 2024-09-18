@@ -19,6 +19,7 @@ jobs:
         with:
           repository: torvalds/linux
           ref: refs/tags/${{ steps.tags.outputs.UPSTREAM_TAG }}
+          path: linux
       - name: Checkout Ubuntu kernel
         env:
           UBUNTU_TAG: ${{ steps.tags.outputs.UBUNTU_TAG }}
