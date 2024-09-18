@@ -4,16 +4,23 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
-      - name: Set kernel version
-        id: kernel_version
+      - name: Set tags
+        id: tags
         run: |
           sudo apt update
           sudo apt install parallel -y
-          sudo apt list '?name(linux-image-[[:digit:]]+.[[:digit:]]+.[[:digit:]]+-[[:digit:]]+-generic)' | awk -F' ' '{print $2}' | tail -n1 | parallel -j1 echo "TAG=Ubuntu-{}" >> "$GITHUB_OUTPUT"
-      - name: Checkout kernel
-        env:
-          TAG: ${{ steps.kernel_version.outputs.TAG }}
+          UBUNTU_KERNEL_VERSION="$(sudo apt list '?name(linux-image-[[:digit:]]+.[[:digit:]]+.[[:digit:]]+-[[:digit:]]+-generic)' | awk -F' ' '{print $2}' | tail -n1)"
+          UBUNTU_TAG="Ubuntu-$UBUNTU_KERNEL_VERSION"
+          UPSTREAM_TAG="v$(echo $UBUNTU_KERNEL_VERSION | awk -F'.' '{print $1"."$2}')"
+          echo "UBUNTU_TAG=$UBUNTU_TAG" >> $GITHUB_OUTPUT
+          echo "UPSTREAM_TAG=$UPSTREAM_TAG" >> $GITHUB_OUTPUT
+      - name: Checkout upstream kernel
         uses: actions/checkout@v4
         with:
-          repository: git://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/noble
-          ref: refs/tags/${{ env.TAG }}
+          repository: torvalds/linux
+          ref: refs/tags/${{ steps.tags.outputs.UPSTREAM_TAG }}
+      - name: Checkout Ubuntu kernel
+        env:
+          UBUNTU_TAG: ${{ steps.tags.outputs.UBUNTU_TAG }}
+        run: |
+          git clone --depth 1 --branch $UBUNTU_TAG --reference linux git://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/noble
