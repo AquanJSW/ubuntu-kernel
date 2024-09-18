@@ -1,0 +1,13 @@
+diff --git a/debian/scripts/misc/kernelconfig b/debian/scripts/misc/kernelconfig
+index 035426762..c26e54228 100755
+--- a/debian/scripts/misc/kernelconfig
++++ b/debian/scripts/misc/kernelconfig
+@@ -49,7 +49,7 @@ TMP_DIR=$(mktemp -d)
+ trap cleanup EXIT
+ 
+ # Use annotations to generate configs
+-FLAVOURS=$(sed -ne 's/^# FLAVOUR: //p' "${annotations_file}")
++FLAVOURS="amd64-generic"
+ 
+ for arch_flavour in ${FLAVOURS} ; do
+ 	arch=${arch_flavour%%-*}
