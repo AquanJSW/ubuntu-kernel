@@ -16,45 +16,49 @@ jobs:
           echo "UBUNTU_KERNEL_VERSION=$UBUNTU_KERNEL_VERSION" >> $GITHUB_OUTPUT
           echo "UBUNTU_TAG=$UBUNTU_TAG" >> $GITHUB_OUTPUT
 
-      - name: Restore Ubuntu kernel cache
-        uses: actions/cache/restore@v4
-        id: cache-kernel
-        with:
-          path: kernel/noble
-          key: ${{ runner.os }}-ubuntu-kernel-${{ steps.tag.outputs.UBUNTU_KERNEL_VERSION }}
-
       - name: Restore artifacts cache
         uses: actions/cache/restore@v4
-        id: cache-artifacts
+        id: restore-artifacts
         with:
           path: kernel/*.deb
           key: ${{ runner.os }}-ubuntu-kernel-${{ steps.tag.outputs.UBUNTU_KERNEL_VERSION }}-artifacts
 
+      - name: Restore kernel source repo cache
+        id: restore-kernel
+        if: steps.restore-artifacts.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: kernel/noble
+          key: ${{ runner.os }}-ubuntu-kernel-${{ steps.tag.outputs.UBUNTU_KERNEL_VERSION }}
+
       - name: Checkout Ubuntu kernel
-        if: steps.cache-kernel.outputs.cache-hit != 'true'
+        id: checkout-kernel
+        if: steps.restore-kernel.outcome == 'success' && steps.restore-kernel.outputs.cache-hit != 'true'
         env:
           UBUNTU_TAG: ${{ steps.tag.outputs.UBUNTU_TAG }}
         run: |
           git clone --depth 1 --branch $UBUNTU_TAG git://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/noble kernel/noble
 
       - name: Cache Ubuntu kernel repo
-        if: steps.cache-kernel.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: kernel/noble
           key: ${{ runner.os }}-ubuntu-kernel-${{ steps.tag.outputs.UBUNTU_KERNEL_VERSION }}
 
       - name: Checkout kernel patches
+        if: steps.restore-artifacts.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }}
           path: pathes
 
       - name: Install dependencies
+        if: steps.restore-artifacts.outputs.cache-hit != 'true'
         run: |
           sudo apt install libncurses-dev gawk flex bison openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf llvm debhelper
 
       - name: Configure Ubuntu kernel
+        if: steps.restore-artifacts.outputs.cache-hit != 'true'
         continue-on-error: true
         env:
           LOCAL_VERSION: +tscfix
@@ -66,6 +70,7 @@ jobs:
           fakeroot debian/rules updateconfigs
 
       - name: Build Ubuntu kernel
+        if: steps.restore-artifacts.outputs.cache-hit != 'true'
         run: |
           cd kernel/noble
           fakeroot debian/rules binary-headers binary-generic
@@ -77,11 +82,11 @@ jobs:
           key: ${{ runner.os }}-ubuntu-kernel-${{ steps.tag.outputs.UBUNTU_KERNEL_VERSION }}-artifacts
 
       - name: Upload artifacts
-        if: steps.cache-artifacts.outputs.cache-hit != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ubuntu-kernel-noble
+          name: ubuntu-kernel-noble-${{ steps.tag.outputs.UBUNTU_KERNEL_VERSION }}
           path: kernel/*.deb
+          overwrite: true
 
       # Use tmate to debug 'cache clean up' if needed
       # - uses: mxschmitt/action-tmate@v3
