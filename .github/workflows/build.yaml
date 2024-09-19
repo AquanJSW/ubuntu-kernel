@@ -1,5 +1,8 @@
 name: Build Ubuntu Kernel
-on: [push]
+on:
+  push:
+  schedule:
+    - cron: '0 0 * * *'
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -34,22 +37,18 @@ jobs:
         run: |
           git clone --depth 1 --branch $UBUNTU_TAG git://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/noble kernel/noble
 
-      - name: Cache Ubuntu kernel
+      - name: Cache Ubuntu kernel repo
         if: steps.cache-kernel.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: kernel/noble
           key: ${{ runner.os }}-ubuntu-kernel-${{ steps.tag.outputs.UBUNTU_KERNEL_VERSION }}
 
-      - name: Checkout this repository for patches
+      - name: Checkout kernel patches
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }}
           path: pathes
-
-      - name: Patch
-        run: |
-          git apply -p1 --directory=kernel/noble --verbose pathes/patches/0020*.patch
 
       - name: Install dependencies
         run: |
@@ -60,6 +59,7 @@ jobs:
         env:
           LOCAL_VERSION: +tscfix
         run: |
+          git apply -p1 --directory=kernel/noble --verbose pathes/patches/0020*.patch
           cd kernel/noble
           sed -i "1{s/)/${LOCAL_VERSION})/}" debian.master/changelog
           fakeroot debian/rules clean
@@ -76,7 +76,7 @@ jobs:
           path: kernel/*.deb
           key: ${{ runner.os }}-ubuntu-kernel-${{ steps.tag.outputs.UBUNTU_KERNEL_VERSION }}-artifacts
 
-      - name: Upload Ubuntu kernel
+      - name: Upload artifacts
         if: steps.cache-artifacts.outputs.cache-hit != 'true'
         uses: actions/upload-artifact@v4
         with:
