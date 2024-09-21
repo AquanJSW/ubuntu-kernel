@@ -1,0 +1,63 @@
+name: Build mainline kernel
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_version:
+        description: 'Upstream kernel version tag, e.g. v6.11'
+        required: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore kernel
+        id: restore-kernel
+        uses: actions/cache/restore@v4
+        with:
+          key: ubuntu-kernel-mainline-${{ github.event.inputs.kernel_version }}
+          path: kernel/mainline
+
+      - name: Checkout kernel
+        if: steps.restore-kernel.outputs.cache-hit != 'true'
+        env:
+          TAG: cod/mainline/${{ github.event.inputs.kernel_version }}
+        run: |
+          git clone --depth 1 --branch $TAG git://git.launchpad.net/~ubuntu-kernel-test/ubuntu/+source/linux/+git/mainline-crack kernel/mainline
+
+      - name: Cache kernel
+        uses: actions/cache/save@v4
+        with:
+          key: ubuntu-kernel-mainline-${{ github.event.inputs.kernel_version }}
+          path: kernel/mainline
+
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          path: this_repo
+
+      - name: Install dependencies
+        run: |
+          sudo apt install libncurses-dev gawk flex bison openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf llvm debhelper
+
+      - name: Configure Ubuntu kernel
+        continue-on-error: true
+        env:
+          LOCAL_VERSION: +tscfix
+        run: |
+          git apply -p1 --directory=kernel/mainline --verbose this_repo/patches/0020*.patch
+          cd kernel/mainline
+          sed -i "1{s/)/${LOCAL_VERSION})/}" debian.master/changelog
+          fakeroot debian/rules clean
+          fakeroot debian/rules updateconfigs
+
+      - name: Build Ubuntu kernel
+        run: |
+          cd kernel/mainline
+          fakeroot debian/rules binary-headers binary-generic
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-kernel-mainline-${{ github.event.inputs.kernel_version }}
+          path: kernel/*.deb
+          overwrite: true

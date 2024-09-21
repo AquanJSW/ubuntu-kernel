@@ -1,4 +1,4 @@
-name: Build Ubuntu Kernel
+name: Build Latest Noble Kernel
 on: [workflow_dispatch]
 jobs:
   build:
@@ -47,7 +47,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }}
-          path: pathes
+          path: this_repo
 
       - name: Install dependencies
         if: steps.restore-artifacts.outputs.cache-hit != 'true'
@@ -60,7 +60,7 @@ jobs:
         env:
           LOCAL_VERSION: +tscfix
         run: |
-          git apply -p1 --directory=kernel/noble --verbose pathes/patches/0020*.patch
+          git apply -p1 --directory=kernel/noble --verbose this_repo/patches/0020*.patch
           cd kernel/noble
           sed -i "1{s/)/${LOCAL_VERSION})/}" debian.master/changelog
           fakeroot debian/rules clean
@@ -84,11 +84,3 @@ jobs:
           name: ubuntu-kernel-noble-${{ steps.tag.outputs.UBUNTU_KERNEL_VERSION }}
           path: kernel/*.deb
           overwrite: true
-
-      # Use tmate to debug 'cache clean up' if needed
-      # - uses: mxschmitt/action-tmate@v3
-      # - name: Clean up caches
-      #   run: |
-      #     gh extension install actions/gh-actions-cache
-      #     echo "Fetching list of cache keys..."
-      #     gh cache list
