@@ -39,12 +39,29 @@ jobs:
         run: |
           sudo apt install libncurses-dev gawk flex bison openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf llvm debhelper
 
+      - name: Apply patches
+        id: apply-patches
+        continue-on-error: true
+        run: |
+          cat <<-EOF > apply-patches.sh
+          #!/bin/bash
+
+          # Use xargs to apply more patches in the future
+          git apply -p1 --directory=kernel/mainline --verbose this_repo/patches/0020*.patch
+          EOF
+
+          chmod +x apply-patches.sh
+          ./apply-patches.sh
+
+      - name: Modify patches using tmate
+        if: steps.apply-patches.outcome == 'failure'
+        uses: mxschmitt/action-tmate@v3
+
       - name: Configure Ubuntu kernel
         continue-on-error: true
         env:
           LOCAL_VERSION: +tscfix
         run: |
-          git apply -p1 --directory=kernel/mainline --verbose this_repo/patches/0020*.patch
           cd kernel/mainline
           sed -i "1{s/)/${LOCAL_VERSION})/}" debian.master/changelog
           fakeroot debian/rules clean
