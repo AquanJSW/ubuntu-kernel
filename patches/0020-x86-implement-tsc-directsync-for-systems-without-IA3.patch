@@ -42,7 +42,7 @@ index 447506d21a3e..3a2c1854707e 100644
 --- a/arch/x86/kernel/tsc.c
 +++ b/arch/x86/kernel/tsc.c
 @@ -47,6 +47,7 @@ static unsigned int __initdata tsc_early_khz;
- static DEFINE_STATIC_KEY_FALSE(__use_tsc);
+ static DEFINE_STATIC_KEY_FALSE_RO(__use_tsc);
  
  int tsc_clocksource_reliable;
 +int tsc_allow_direct_sync;
