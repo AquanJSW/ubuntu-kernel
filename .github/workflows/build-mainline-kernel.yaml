@@ -54,8 +54,17 @@ jobs:
           ./apply-patches.sh
 
       - name: Modify patches using tmate
+        id: tmate
         if: steps.apply-patches.outcome == 'failure'
         uses: mxschmitt/action-tmate@v3
+
+      - name: Upload patches
+        if: steps.tmate.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-kernel-mainline-${{ github.event.inputs.kernel_version }}-patches
+          path: this_repo/patches
+          overwrite: true
 
       - name: Configure Ubuntu kernel
         continue-on-error: true
